@@ -36,6 +36,7 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  orderBy,
 } from "firebase/firestore";
 
 interface Company {
@@ -350,6 +351,144 @@ interface FloatingMenuState {
     }
     // Default fallback
     return [];
+  };
+
+  // Function to fetch and populate previous batch data
+  const usePreviousBatch = async () => {
+    if (!selectedClientId || !selectedCompanyId) {
+      alert("Please select a client first.");
+      return;
+    }
+
+    try {
+      console.log("🔍 Fetching previous batch for client:", selectedClientId);
+      
+      // Get all checks for this company
+      const checksQuery = query(
+        collection(db, 'checks'),
+        where('companyId', '==', selectedCompanyId),
+        orderBy('date', 'desc')
+      );
+      
+      const checksSnapshot = await getDocs(checksQuery);
+      const allChecks = checksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+      
+      console.log("🔍 Found total checks:", allChecks.length);
+      
+      // Get employees for the current client
+      const clientEmployees = employees.filter(emp => {
+        if (selectedClientId === 'multiple') {
+          return emp.clientPayTypeRelationships && emp.clientPayTypeRelationships.length > 1;
+        } else {
+          return emp.clientPayTypeRelationships?.some(rel => rel.clientId === selectedClientId) ||
+                 emp.clientId === selectedClientId;
+        }
+      });
+      
+      console.log("🔍 Client employees:", clientEmployees.length);
+      
+      const newSelectedEmployees = { ...selectedEmployees };
+      const newInputs = { ...inputs };
+      let foundPreviousData = false;
+      
+      // For each employee, find their most recent check for this client
+      clientEmployees.forEach(emp => {
+        let latestCheck = null;
+        
+        if (selectedClientId === 'multiple') {
+          // For multiple clients, find the most recent check with multiple relationships
+          latestCheck = allChecks
+            .filter((check: any) => 
+              check.employeeId === emp.id && 
+              check.clientId === 'multiple' &&
+              check.relationshipDetails && 
+              check.relationshipDetails.length > 1
+            )
+            .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+        } else {
+          // For single client, find the most recent check for this specific client
+          latestCheck = allChecks
+            .filter((check: any) => 
+              check.employeeId === emp.id && 
+              (check.clientId === selectedClientId || 
+               (check.relationshipDetails && check.relationshipDetails.some((rel: any) => rel.clientId === selectedClientId)))
+            )
+            .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+        }
+        
+        if (latestCheck) {
+          console.log(`🔍 Found previous check for ${emp.name}:`, latestCheck);
+          foundPreviousData = true;
+          
+          // Select the employee
+          newSelectedEmployees[emp.id] = true;
+          
+          // Get default settings
+          const defaultPaymentMethods = getDefaultPaymentMethods(emp);
+          const defaultRelationshipIds = getDefaultRelationshipIds(emp);
+          
+          // Populate with previous check data
+          const empInput: any = {
+            paymentMethods: defaultPaymentMethods,
+            selectedRelationshipIds: defaultRelationshipIds,
+            hours: latestCheck.hours?.toString() || "",
+            otHours: latestCheck.otHours?.toString() || "",
+            holidayHours: latestCheck.holidayHours?.toString() || "",
+            memo: latestCheck.memo || "",
+            perdiemAmount: latestCheck.perdiemAmount?.toString() || "",
+            perdiemBreakdown: latestCheck.perdiemBreakdown || false,
+            perdiemMonday: latestCheck.perdiemMonday?.toString() || "",
+            perdiemTuesday: latestCheck.perdiemTuesday?.toString() || "",
+            perdiemWednesday: latestCheck.perdiemWednesday?.toString() || "",
+            perdiemThursday: latestCheck.perdiemThursday?.toString() || "",
+            perdiemFriday: latestCheck.perdiemFriday?.toString() || "",
+            perdiemSaturday: latestCheck.perdiemSaturday?.toString() || "",
+            perdiemSunday: latestCheck.perdiemSunday?.toString() || "",
+          };
+          
+          // If employee has relationships, also populate relationship-specific fields
+          if (emp.clientPayTypeRelationships) {
+            emp.clientPayTypeRelationships.forEach(relationship => {
+              if (selectedClientId === 'multiple' || relationship.clientId === selectedClientId) {
+                const relId = relationship.id;
+                // Copy basic values to relationship-specific fields
+                if (relationship.payType === 'hourly') {
+                  empInput[`${relId}_hours`] = empInput.hours;
+                  empInput[`${relId}_otHours`] = empInput.otHours;
+                  empInput[`${relId}_holidayHours`] = empInput.holidayHours;
+                } else if (relationship.payType === 'perdiem') {
+                  empInput[`${relId}_perdiemAmount`] = empInput.perdiemAmount;
+                  empInput[`${relId}_perdiemBreakdown`] = empInput.perdiemBreakdown;
+                  empInput[`${relId}_perdiemMonday`] = empInput.perdiemMonday;
+                  empInput[`${relId}_perdiemTuesday`] = empInput.perdiemTuesday;
+                  empInput[`${relId}_perdiemWednesday`] = empInput.perdiemWednesday;
+                  empInput[`${relId}_perdiemThursday`] = empInput.perdiemThursday;
+                  empInput[`${relId}_perdiemFriday`] = empInput.perdiemFriday;
+                  empInput[`${relId}_perdiemSaturday`] = empInput.perdiemSaturday;
+                  empInput[`${relId}_perdiemSunday`] = empInput.perdiemSunday;
+                }
+              }
+            });
+          }
+          
+          newInputs[emp.id] = empInput;
+        } else {
+          console.log(`🔍 No previous check found for ${emp.name}`);
+        }
+      });
+      
+      if (foundPreviousData) {
+        setSelectedEmployees(newSelectedEmployees);
+        setInputs(newInputs);
+        alert(`✅ Successfully loaded previous batch data for ${Object.keys(newSelectedEmployees).filter(id => newSelectedEmployees[id]).length} employees!`);
+      } else {
+        alert("❌ No previous batch data found for this client. Please create checks manually.");
+      }
+      
+    } catch (error) {
+      console.error("Error fetching previous batch:", error);
+      alert("❌ Error fetching previous batch data. Please try again.");
+    }
   };
 
   const toggleEmployee = (id: string) => {
@@ -1778,50 +1917,69 @@ interface FloatingMenuState {
                   Clear Selection
                 </Button>
                 {selectedClientId && (
-                  <Button
-                    variant="contained"
-                    size="small"
-                    onClick={() => {
-                      // Auto-select employees for this client
-                      const clientEmployees = employees.filter(emp => 
-                        emp.clientPayTypeRelationships?.some(rel => rel.clientId === selectedClientId) ||
-                        emp.clientId === selectedClientId
-                      );
-                      const newSelectedEmployees = { ...selectedEmployees };
-                      const newInputs = { ...inputs };
-                      
-                      clientEmployees.forEach(emp => {
-                        newSelectedEmployees[emp.id] = true;
-                        // Auto-set payment methods and relationships for this client
-                        const defaultPaymentMethods = getDefaultPaymentMethods(emp);
-                        const defaultRelationshipIds = getDefaultRelationshipIds(emp);
-                        newInputs[emp.id] = {
-                          ...newInputs[emp.id],
-                          paymentMethods: defaultPaymentMethods,
-                          selectedRelationshipIds: defaultRelationshipIds,
-                          hours: "",
-                          otHours: "",
-                          holidayHours: "",
-                          memo: "",
-                          perdiemAmount: "",
-                          perdiemBreakdown: false,
-                          perdiemMonday: "",
-                          perdiemTuesday: "",
-                          perdiemWednesday: "",
-                          perdiemThursday: "",
-                          perdiemFriday: "",
-                          perdiemSaturday: "",
-                          perdiemSunday: "",
-                        };
-                      });
-                      
-                      setSelectedEmployees(newSelectedEmployees);
-                      setInputs(newInputs);
-                    }}
-                    startIcon={<span></span>}
-                  >
-                    Select All {companyClients.find(c => c.id === selectedClientId)?.name} Employees
-                  </Button>
+                  <>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      onClick={() => {
+                        // Auto-select employees for this client
+                        const clientEmployees = employees.filter(emp => 
+                          emp.clientPayTypeRelationships?.some(rel => rel.clientId === selectedClientId) ||
+                          emp.clientId === selectedClientId
+                        );
+                        const newSelectedEmployees = { ...selectedEmployees };
+                        const newInputs = { ...inputs };
+                        
+                        clientEmployees.forEach(emp => {
+                          newSelectedEmployees[emp.id] = true;
+                          // Auto-set payment methods and relationships for this client
+                          const defaultPaymentMethods = getDefaultPaymentMethods(emp);
+                          const defaultRelationshipIds = getDefaultRelationshipIds(emp);
+                          newInputs[emp.id] = {
+                            ...newInputs[emp.id],
+                            paymentMethods: defaultPaymentMethods,
+                            selectedRelationshipIds: defaultRelationshipIds,
+                            hours: "",
+                            otHours: "",
+                            holidayHours: "",
+                            memo: "",
+                            perdiemAmount: "",
+                            perdiemBreakdown: false,
+                            perdiemMonday: "",
+                            perdiemTuesday: "",
+                            perdiemWednesday: "",
+                            perdiemThursday: "",
+                            perdiemFriday: "",
+                            perdiemSaturday: "",
+                            perdiemSunday: "",
+                          };
+                        });
+                        
+                        setSelectedEmployees(newSelectedEmployees);
+                        setInputs(newInputs);
+                      }}
+                      startIcon={<span>👥</span>}
+                    >
+                      Select All {companyClients.find(c => c.id === selectedClientId)?.name} Employees
+                    </Button>
+                    
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      color="primary"
+                      onClick={usePreviousBatch}
+                      startIcon={<span>📋</span>}
+                      sx={{
+                        borderColor: 'primary.main',
+                        '&:hover': {
+                          backgroundColor: 'primary.50',
+                          borderColor: 'primary.dark',
+                        }
+                      }}
+                    >
+                      Use Previous Batch of Checks
+                    </Button>
+                  </>
                 )}
               </Box>
             </Box>
