@@ -125,11 +125,53 @@ interface FloatingMenuState {
   );
   const [selectedClientId, setSelectedClientId] = useState<string>('multiple');
 
-  const [selectedEmployees, setSelectedEmployees] = useState<{
-    [id: string]: boolean;
+  // Store data per client tab to prevent loss when switching tabs
+  const [tabData, setTabData] = useState<{
+    [tabId: string]: {
+      selectedEmployees: { [id: string]: boolean };
+      inputs: { [id: string]: PayInput };
+    };
   }>({});
 
-  const [inputs, setInputs] = useState<{ [id: string]: PayInput }>({});
+  // Current tab's data
+  const currentTabId = selectedClientId || 'multiple';
+  const selectedEmployees = tabData[currentTabId]?.selectedEmployees || {};
+  const inputs = tabData[currentTabId]?.inputs || {};
+
+  // Helper functions to update tab data
+  const setSelectedEmployees = (newSelectedEmployees: { [id: string]: boolean } | ((prev: { [id: string]: boolean }) => { [id: string]: boolean })) => {
+    setTabData(prev => {
+      const currentData = prev[currentTabId] || { selectedEmployees: {}, inputs: {} };
+      const updatedEmployees = typeof newSelectedEmployees === 'function' 
+        ? newSelectedEmployees(currentData.selectedEmployees)
+        : newSelectedEmployees;
+      
+      return {
+        ...prev,
+        [currentTabId]: {
+          ...currentData,
+          selectedEmployees: updatedEmployees
+        }
+      };
+    });
+  };
+
+  const setInputs = (newInputs: { [id: string]: PayInput } | ((prev: { [id: string]: PayInput }) => { [id: string]: PayInput })) => {
+    setTabData(prev => {
+      const currentData = prev[currentTabId] || { selectedEmployees: {}, inputs: {} };
+      const updatedInputs = typeof newInputs === 'function'
+        ? newInputs(currentData.inputs)
+        : newInputs;
+      
+      return {
+        ...prev,
+        [currentTabId]: {
+          ...currentData,
+          inputs: updatedInputs
+        }
+      };
+    });
+  };
   const [isCreatingChecks, setIsCreatingChecks] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showReviewPanel, setShowReviewPanel] = useState(false);
@@ -254,10 +296,9 @@ interface FloatingMenuState {
     return matchesSearch && matchesStatus;
   });
 
-  // Clear selections when company changes
+  // Clear all tab data when company changes
   useEffect(() => {
-    setSelectedEmployees({});
-    setInputs({});
+    setTabData({});
     setSelectedClientId('multiple');  // Keep it as 'multiple' so filtering works immediately
   }, [selectedCompanyId]);
 
