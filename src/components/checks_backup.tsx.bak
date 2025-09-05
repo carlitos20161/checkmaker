@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   Box,
   Typography,
@@ -107,6 +107,9 @@ interface BatchChecksProps {
 
 // Floating menu state interface
 interface FloatingMenuState {
+  checkData?: {
+    weekKey?: string;
+  };
   open: boolean;
   companyId: string | null;
   clientId: string | null;
@@ -257,7 +260,7 @@ interface FloatingMenuState {
   useEffect(() => {
     setSelectedEmployees({});
     setInputs({});
-    setSelectedClientId('multiple');  // Keep it as 'multiple' so filtering works immediately
+    setSelectedClientId('');  // Keep it as 'multiple' so filtering works immediately
   }, [selectedCompanyId]);
 
   // Don't clear selections when switching client tabs - let users keep their work
@@ -515,7 +518,26 @@ interface FloatingMenuState {
       }
     }
     return emp.payRate || 0;
-  };
+
+  // Helper function to calculate total per diem amount for all selected relationships
+  const calculatePerDiemTotalForRelationship = (emp: Employee, data: PayInput) => {
+    let total = 0;
+    
+    if (data.selectedRelationshipIds && data.selectedRelationshipIds.length > 0) {
+      // Calculate total from all selected per diem relationships
+      data.selectedRelationshipIds.forEach(relationshipId => {
+        const relationship = emp.clientPayTypeRelationships?.find(rel => rel.id === relationshipId);
+        if (relationship && relationship.payType === 'perdiem') {
+          total += parseFloat(calculatePerDiemTotalForRelationship(data, relationshipId));
+        }
+      });
+    } else {
+      // Fallback to basic per diem calculation
+      total = parseFloat(calculatePerDiemTotal(data));
+    }
+    
+    return total;
+  };  };
 
   // Helper function to get the pay rate for a specific relationship
   const getRelationshipPayRate = (emp: Employee, relationshipId: string) => {
@@ -531,7 +553,26 @@ interface FloatingMenuState {
       return parseFloat(relationship.payRate);
     }
     return emp.payRate || 0;
-  };
+
+  // Helper function to calculate total per diem amount for all selected relationships
+  const calculatePerDiemTotalForRelationship = (emp: Employee, data: PayInput) => {
+    let total = 0;
+    
+    if (data.selectedRelationshipIds && data.selectedRelationshipIds.length > 0) {
+      // Calculate total from all selected per diem relationships
+      data.selectedRelationshipIds.forEach(relationshipId => {
+        const relationship = emp.clientPayTypeRelationships?.find(rel => rel.id === relationshipId);
+        if (relationship && relationship.payType === 'perdiem') {
+          total += parseFloat(calculatePerDiemTotalForRelationship(data, relationshipId));
+        }
+      });
+    } else {
+      // Fallback to basic per diem calculation
+      total = parseFloat(calculatePerDiemTotal(data));
+    }
+    
+    return total;
+  };  };
 
   const calculateAmount = (emp: Employee, data: PayInput) => {
     let total = 0;
@@ -1275,7 +1316,10 @@ interface FloatingMenuState {
         clientId: selectedClientId !== 'multiple' ? selectedClientId : null,
         checkId: createdChecks[0]?.id || null,
         companyName: company?.name || 'Unknown Company',
-        clientName: client?.name || 'Multiple Clients'
+        clientName: client?.name || 'Multiple Clients',
+        checkData: {
+          weekKey: weekKey
+        }
       });
       
       // Clear selections and inputs
@@ -1347,7 +1391,7 @@ interface FloatingMenuState {
         input: data,
         calculatedAmount: parseFloat(calculateAmount(emp, data)),
         hourlyTotal: parseFloat(calculateHourlyTotal(emp, data)),
-        perDiemTotal: parseFloat(calculatePerDiemTotal(data))
+        perDiemTotal: calculatePerDiemTotalForRelationship(emp, data)
       };
     }).filter((item): item is NonNullable<typeof item> => item !== null);
 
@@ -2517,12 +2561,10 @@ interface FloatingMenuState {
                                   const relationship = emp.clientPayTypeRelationships.find(rel => rel.clientId === selectedClientId);
                                   if (relationship) {
                                     handleInputChange(emp.id, `${relationship.id}_perdiemMonday`, e.target.value);
-                                    handleInputChange(emp.id, `${relationship.id}_perdiemBreakdown`, true);
                                     return;
                                   }
                                 }
                                 handleInputChange(emp.id, "perdiemMonday", e.target.value);
-                                handleInputChange(emp.id, "perdiemBreakdown", true);
                               }}
                               size="small"
                               placeholder="0"
@@ -2544,12 +2586,10 @@ interface FloatingMenuState {
                                   const relationship = emp.clientPayTypeRelationships.find(rel => rel.clientId === selectedClientId);
                                   if (relationship) {
                                     handleInputChange(emp.id, `${relationship.id}_perdiemTuesday`, e.target.value);
-                                    handleInputChange(emp.id, `${relationship.id}_perdiemBreakdown`, true);
                                     return;
                                   }
                                 }
                                 handleInputChange(emp.id, "perdiemTuesday", e.target.value);
-                                handleInputChange(emp.id, "perdiemBreakdown", true);
                               }}
                               size="small"
                               placeholder="0"
@@ -2571,12 +2611,10 @@ interface FloatingMenuState {
                                   const relationship = emp.clientPayTypeRelationships.find(rel => rel.clientId === selectedClientId);
                                   if (relationship) {
                                     handleInputChange(emp.id, `${relationship.id}_perdiemWednesday`, e.target.value);
-                                    handleInputChange(emp.id, `${relationship.id}_perdiemBreakdown`, true);
                                     return;
                                   }
                                 }
                                 handleInputChange(emp.id, "perdiemWednesday", e.target.value);
-                                handleInputChange(emp.id, "perdiemBreakdown", true);
                               }}
                               size="small"
                               placeholder="0"
@@ -2598,12 +2636,10 @@ interface FloatingMenuState {
                                   const relationship = emp.clientPayTypeRelationships.find(rel => rel.clientId === selectedClientId);
                                   if (relationship) {
                                     handleInputChange(emp.id, `${relationship.id}_perdiemThursday`, e.target.value);
-                                    handleInputChange(emp.id, `${relationship.id}_perdiemBreakdown`, true);
                                     return;
                                   }
                                 }
                                 handleInputChange(emp.id, "perdiemThursday", e.target.value);
-                                handleInputChange(emp.id, "perdiemBreakdown", true);
                               }}
                               size="small"
                               placeholder="0"
@@ -2625,12 +2661,10 @@ interface FloatingMenuState {
                                   const relationship = emp.clientPayTypeRelationships.find(rel => rel.clientId === selectedClientId);
                                   if (relationship) {
                                     handleInputChange(emp.id, `${relationship.id}_perdiemFriday`, e.target.value);
-                                    handleInputChange(emp.id, `${relationship.id}_perdiemBreakdown`, true);
                                     return;
                                   }
                                 }
                                 handleInputChange(emp.id, "perdiemFriday", e.target.value);
-                                handleInputChange(emp.id, "perdiemBreakdown", true);
                               }}
                               size="small"
                               placeholder="0"
@@ -2652,12 +2686,10 @@ interface FloatingMenuState {
                                   const relationship = emp.clientPayTypeRelationships.find(rel => rel.clientId === selectedClientId);
                                   if (relationship) {
                                     handleInputChange(emp.id, `${relationship.id}_perdiemSaturday`, e.target.value);
-                                    handleInputChange(emp.id, `${relationship.id}_perdiemBreakdown`, true);
                                     return;
                                   }
                                 }
                                 handleInputChange(emp.id, "perdiemSaturday", e.target.value);
-                                handleInputChange(emp.id, "perdiemBreakdown", true);
                               }}
                               size="small"
                               placeholder="0"
@@ -2679,12 +2711,10 @@ interface FloatingMenuState {
                                   const relationship = emp.clientPayTypeRelationships.find(rel => rel.clientId === selectedClientId);
                                   if (relationship) {
                                     handleInputChange(emp.id, `${relationship.id}_perdiemSunday`, e.target.value);
-                                    handleInputChange(emp.id, `${relationship.id}_perdiemBreakdown`, true);
                                     return;
                                   }
                                 }
                                 handleInputChange(emp.id, "perdiemSunday", e.target.value);
-                                handleInputChange(emp.id, "perdiemBreakdown", true);
                               }}
                               size="small"
                               placeholder="0"
@@ -3633,6 +3663,9 @@ interface FloatingMenuState {
                   // Set a flag to indicate we want to filter by company
                   localStorage.setItem('pendingCompanyFilter', floatingMenu.companyId || '');
                   // Set a flag to indicate we want to filter by week
+                  if (floatingMenu.checkData && floatingMenu.checkData.weekKey) {
+                    localStorage.setItem('pendingWeekFilter', floatingMenu.checkData.weekKey);
+                  }
                   setFloatingMenu(prev => ({ ...prev, open: false }));
                 }}
                 sx={{
@@ -3642,48 +3675,7 @@ interface FloatingMenuState {
               >
                 📊 View My Checks
               </Button>
-              
-              {floatingMenu.clientId && (
-                <Button
-                  variant="contained"
-                  size="small"
-                  fullWidth
-                  onClick={() => {
-                    // Navigate to View Checks with company and client filter
-                    onGoToSection('View Checks');
-                    // Set flags to indicate we want to filter by company and client
-                    localStorage.setItem('pendingCompanyFilter', floatingMenu.companyId || '');
-                  // Set a flag to indicate we want to filter by week
-                    localStorage.setItem('pendingClientFilter', floatingMenu.clientId || '');
-                    setFloatingMenu(prev => ({ ...prev, open: false }));
-                  }}
-                  sx={{
-                    background: 'rgba(255,255,255,0.2)',
-                    '&:hover': { background: 'rgba(255,255,255,0.3)' }
-                  }}
-                >
-                  👥 View Client Checks
-                </Button>
-              )}
-              
-              <Button
-                variant="outlined"
-                size="small"
-                fullWidth
-                onClick={() => setFloatingMenu(prev => ({ ...prev, open: false }))}
-                sx={{
-                  borderColor: 'rgba(255,255,255,0.5)',
-                  color: 'white',
-                  '&:hover': { 
-                    borderColor: 'white',
-                    background: 'rgba(255,255,255,0.1)'
-                  }
-                }}
-              >
-                ✕ Close
-              </Button>
-            </Box>
-          </Paper>
+            </Box>          </Paper>
         </Box>
       </Fade>
     </Box>
