@@ -1020,9 +1020,51 @@ interface FloatingMenuState {
           employeeName: emp.name,
           employeeId: emp.id,
           amount: totalAmount,
-          hours: data.hours && data.hours !== '' ? parseFloat(data.hours) : 0,
-          otHours: data.otHours && data.otHours !== '' ? parseFloat(data.otHours) : 0,
-          holidayHours: data.holidayHours && data.holidayHours !== '' ? parseFloat(data.holidayHours) : 0,
+          hours: (() => {
+            // Check for relationship-specific hourly data first (when employee has relationships)
+            if (selectedClientId !== 'multiple') {
+              const relationship = emp.clientPayTypeRelationships?.find(rel => rel.clientId === selectedClientId);
+              if (relationship && relationship.payType === 'hourly') {
+                const relId = relationship.id;
+                const relHours = data[`${relId}_hours`];
+                if (relHours && relHours !== '') {
+                  return parseFloat(relHours);
+                }
+              }
+            }
+            // Fallback to basic hours field
+            return data.hours && data.hours !== '' ? parseFloat(data.hours) : 0;
+          })(),
+          otHours: (() => {
+            // Check for relationship-specific OT hours data first
+            if (selectedClientId !== 'multiple') {
+              const relationship = emp.clientPayTypeRelationships?.find(rel => rel.clientId === selectedClientId);
+              if (relationship && relationship.payType === 'hourly') {
+                const relId = relationship.id;
+                const relOtHours = data[`${relId}_otHours`];
+                if (relOtHours && relOtHours !== '') {
+                  return parseFloat(relOtHours);
+                }
+              }
+            }
+            // Fallback to basic otHours field
+            return data.otHours && data.otHours !== '' ? parseFloat(data.otHours) : 0;
+          })(),
+          holidayHours: (() => {
+            // Check for relationship-specific holiday hours data first
+            if (selectedClientId !== 'multiple') {
+              const relationship = emp.clientPayTypeRelationships?.find(rel => rel.clientId === selectedClientId);
+              if (relationship && relationship.payType === 'hourly') {
+                const relId = relationship.id;
+                const relHolidayHours = data[`${relId}_holidayHours`];
+                if (relHolidayHours && relHolidayHours !== '') {
+                  return parseFloat(relHolidayHours);
+                }
+              }
+            }
+            // Fallback to basic holidayHours field
+            return data.holidayHours && data.holidayHours !== '' ? parseFloat(data.holidayHours) : 0;
+          })(),
           memo: data.memo || '',
           paymentMethods: data.paymentMethods || [payType],
           selectedRelationshipIds: selectedRelationshipIds.length > 0 ? selectedRelationshipIds : [],
