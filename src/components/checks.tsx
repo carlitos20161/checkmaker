@@ -1147,32 +1147,67 @@ interface FloatingMenuState {
 
         // Add per diem fields only if they have values (for single-client checks only)
         if (selectedClientId !== 'multiple') {
-          if (data.perdiemBreakdown !== undefined) {
-            checkData.perdiemBreakdown = data.perdiemBreakdown;
-          }
-          if (data.perdiemAmount && parseFloat(data.perdiemAmount) > 0) {
-            checkData.perdiemAmount = parseFloat(data.perdiemAmount);
-          }
-          if (data.perdiemMonday !== undefined && data.perdiemMonday !== '') {
-            checkData.perdiemMonday = parseFloat(data.perdiemMonday);
-          }
-          if (data.perdiemTuesday !== undefined && data.perdiemTuesday !== '') {
-            checkData.perdiemTuesday = parseFloat(data.perdiemTuesday);
-          }
-          if (data.perdiemWednesday !== undefined && data.perdiemWednesday !== '') {
-            checkData.perdiemWednesday = parseFloat(data.perdiemWednesday);
-          }
-          if (data.perdiemThursday !== undefined && data.perdiemThursday !== '') {
-            checkData.perdiemThursday = parseFloat(data.perdiemThursday);
-          }
-          if (data.perdiemFriday !== undefined && data.perdiemFriday !== '') {
-            checkData.perdiemFriday = parseFloat(data.perdiemFriday);
-          }
-          if (data.perdiemSaturday !== undefined && data.perdiemSaturday !== '') {
-            checkData.perdiemSaturday = parseFloat(data.perdiemSaturday);
-          }
-          if (data.perdiemSunday !== undefined && data.perdiemSunday !== '') {
-            checkData.perdiemSunday = parseFloat(data.perdiemSunday);
+          // Check for relationship-specific per diem data first (when employee has relationships)
+          const relationship = emp.clientPayTypeRelationships?.find(rel => rel.clientId === selectedClientId);
+          if (relationship && relationship.payType === 'perdiem') {
+            // Use relationship-specific fields
+            const relId = relationship.id;
+            if (data[`${relId}_perdiemBreakdown`] !== undefined) {
+              checkData.perdiemBreakdown = data[`${relId}_perdiemBreakdown`];
+            }
+            if (data[`${relId}_perdiemAmount`] && parseFloat(data[`${relId}_perdiemAmount`]) > 0) {
+              checkData.perdiemAmount = parseFloat(data[`${relId}_perdiemAmount`]);
+            }
+            if (data[`${relId}_perdiemMonday`] !== undefined && data[`${relId}_perdiemMonday`] !== '') {
+              checkData.perdiemMonday = parseFloat(data[`${relId}_perdiemMonday`]);
+            }
+            if (data[`${relId}_perdiemTuesday`] !== undefined && data[`${relId}_perdiemTuesday`] !== '') {
+              checkData.perdiemTuesday = parseFloat(data[`${relId}_perdiemTuesday`]);
+            }
+            if (data[`${relId}_perdiemWednesday`] !== undefined && data[`${relId}_perdiemWednesday`] !== '') {
+              checkData.perdiemWednesday = parseFloat(data[`${relId}_perdiemWednesday`]);
+            }
+            if (data[`${relId}_perdiemThursday`] !== undefined && data[`${relId}_perdiemThursday`] !== '') {
+              checkData.perdiemThursday = parseFloat(data[`${relId}_perdiemThursday`]);
+            }
+            if (data[`${relId}_perdiemFriday`] !== undefined && data[`${relId}_perdiemFriday`] !== '') {
+              checkData.perdiemFriday = parseFloat(data[`${relId}_perdiemFriday`]);
+            }
+            if (data[`${relId}_perdiemSaturday`] !== undefined && data[`${relId}_perdiemSaturday`] !== '') {
+              checkData.perdiemSaturday = parseFloat(data[`${relId}_perdiemSaturday`]);
+            }
+            if (data[`${relId}_perdiemSunday`] !== undefined && data[`${relId}_perdiemSunday`] !== '') {
+              checkData.perdiemSunday = parseFloat(data[`${relId}_perdiemSunday`]);
+            }
+          } else {
+            // Fallback to basic per diem fields (legacy support)
+            if (data.perdiemBreakdown !== undefined) {
+              checkData.perdiemBreakdown = data.perdiemBreakdown;
+            }
+            if (data.perdiemAmount && parseFloat(data.perdiemAmount) > 0) {
+              checkData.perdiemAmount = parseFloat(data.perdiemAmount);
+            }
+            if (data.perdiemMonday !== undefined && data.perdiemMonday !== '') {
+              checkData.perdiemMonday = parseFloat(data.perdiemMonday);
+            }
+            if (data.perdiemTuesday !== undefined && data.perdiemTuesday !== '') {
+              checkData.perdiemTuesday = parseFloat(data.perdiemTuesday);
+            }
+            if (data.perdiemWednesday !== undefined && data.perdiemWednesday !== '') {
+              checkData.perdiemWednesday = parseFloat(data.perdiemWednesday);
+            }
+            if (data.perdiemThursday !== undefined && data.perdiemThursday !== '') {
+              checkData.perdiemThursday = parseFloat(data.perdiemThursday);
+            }
+            if (data.perdiemFriday !== undefined && data.perdiemFriday !== '') {
+              checkData.perdiemFriday = parseFloat(data.perdiemFriday);
+            }
+            if (data.perdiemSaturday !== undefined && data.perdiemSaturday !== '') {
+              checkData.perdiemSaturday = parseFloat(data.perdiemSaturday);
+            }
+            if (data.perdiemSunday !== undefined && data.perdiemSunday !== '') {
+              checkData.perdiemSunday = parseFloat(data.perdiemSunday);
+            }
           }
         }
 
