@@ -339,8 +339,8 @@ interface FloatingMenuState {
   // Helper function to get default relationship IDs based on selected client tab
   const getDefaultRelationshipIds = (emp: Employee) => {
     if (selectedClientId === 'multiple') {
-      // Multiple clients tab: no default relationships
-      return [];
+      // Multiple clients tab: automatically select all active relationships
+      return emp.clientPayTypeRelationships?.filter(rel => rel.active).map(rel => rel.id) || [];
     } else if (selectedClientId) {
       // Single client tab: automatically select the relationship for this client
       const relationship = emp.clientPayTypeRelationships?.find(rel => rel.clientId === selectedClientId);
