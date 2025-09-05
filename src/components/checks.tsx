@@ -140,15 +140,16 @@ interface FloatingMenuState {
 
   // Helper functions to update tab data
   const setSelectedEmployees = (newSelectedEmployees: { [id: string]: boolean } | ((prev: { [id: string]: boolean }) => { [id: string]: boolean })) => {
+    const tabId = selectedClientId || 'multiple'; // Capture current tab at function call time
     setTabData(prev => {
-      const currentData = prev[currentTabId] || { selectedEmployees: {}, inputs: {} };
+      const currentData = prev[tabId] || { selectedEmployees: {}, inputs: {} };
       const updatedEmployees = typeof newSelectedEmployees === 'function' 
         ? newSelectedEmployees(currentData.selectedEmployees)
         : newSelectedEmployees;
       
       return {
         ...prev,
-        [currentTabId]: {
+        [tabId]: {
           ...currentData,
           selectedEmployees: updatedEmployees
         }
@@ -157,15 +158,16 @@ interface FloatingMenuState {
   };
 
   const setInputs = (newInputs: { [id: string]: PayInput } | ((prev: { [id: string]: PayInput }) => { [id: string]: PayInput })) => {
+    const tabId = selectedClientId || 'multiple'; // Capture current tab at function call time
     setTabData(prev => {
-      const currentData = prev[currentTabId] || { selectedEmployees: {}, inputs: {} };
+      const currentData = prev[tabId] || { selectedEmployees: {}, inputs: {} };
       const updatedInputs = typeof newInputs === 'function'
         ? newInputs(currentData.inputs)
         : newInputs;
       
       return {
         ...prev,
-        [currentTabId]: {
+        [tabId]: {
           ...currentData,
           inputs: updatedInputs
         }
