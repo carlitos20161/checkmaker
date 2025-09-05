@@ -2898,6 +2898,21 @@ interface FloatingMenuState {
                                   ) : null;
                                 }
                               }
+                              // For multiple clients tab, aggregate all relationship-specific per diem values
+                              if (selectedClientId === 'multiple' && emp.clientPayTypeRelationships) {
+                                let total = 0;
+                                emp.clientPayTypeRelationships.forEach(relationship => {
+                                  if (relationship.payType === 'perdiem') {
+                                    total += parseFloat(calculatePerDiemTotalForRelationship(inputs[emp.id] || {}, relationship.id));
+                                  }
+                                });
+                                return total > 0 ? (
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span>Per Diem Amount:</span>
+                                    <span>${total.toFixed(2)}</span>
+                                  </Box>
+                                ) : null;
+                              }
                               // Fallback to legacy calculation
                               const total = parseFloat(calculatePerDiemTotal(inputs[emp.id] || {}));
                               return total > 0 ? (
