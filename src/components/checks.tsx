@@ -1198,6 +1198,10 @@ interface FloatingMenuState {
           }
         });
 
+        // Add relationshipDetails to checkData for proper display
+        checkData.relationshipDetails = relationshipDetails;
+        checkData.selectedRelationshipIds = selectedRelationshipIds;
+
         console.log("🔍 DEBUG: Data after cleanup:", checkData);
         console.log("🔍 DEBUG: Saving check data with relationships:", relationshipDetails.length, checkData);
         console.log("🔍 DEBUG: relationshipDetails:", relationshipDetails);
