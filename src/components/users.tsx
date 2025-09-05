@@ -14,10 +14,8 @@ import {
   Paper,
   Typography,
   Button,
-  List,
   ListItem,
   ListItemButton,
-  ListItemText,
   Divider,
   Dialog,
   DialogTitle,
@@ -32,7 +30,14 @@ import {
   Chip,
   FormControlLabel,
   Switch,
+  Alert,
+  Tooltip,
 } from "@mui/material";
+import {
+  Print,
+  PrintDisabled,
+  Security,
+} from '@mui/icons-material';
 
 interface Company {
   id: string;
@@ -47,6 +52,7 @@ interface User {
   role: string;
   active: boolean;
   companyIds?: string[];
+  canPrintChecks?: boolean; // ✅ New field for check printing permission
 }
 
 const UsersPage: React.FC = () => {
@@ -61,6 +67,7 @@ const UsersPage: React.FC = () => {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("user");
   const [companyIds, setCompanyIds] = useState<string[]>([]);
+  const [canPrintChecks, setCanPrintChecks] = useState(false); // ✅ New state for create form
 
   // Details dialog
   const [openDetails, setOpenDetails] = useState(false);
@@ -68,6 +75,7 @@ const UsersPage: React.FC = () => {
   const [editPassword, setEditPassword] = useState("");
   const [editCompanies, setEditCompanies] = useState<string[]>([]);
   const [editActive, setEditActive] = useState(true);
+  const [editCanPrintChecks, setEditCanPrintChecks] = useState(false); // ✅ New state for edit form
 
   // fetch data
   const fetchAll = async () => {
@@ -82,6 +90,7 @@ const UsersPage: React.FC = () => {
         role: data.role,
         active: data.active ?? true,
         companyIds: Array.isArray(data.companyIds) ? data.companyIds : [],
+        canPrintChecks: data.canPrintChecks ?? false, // ✅ Load printing permission
       };
     });
     setUsers(uList);
@@ -121,6 +130,7 @@ const UsersPage: React.FC = () => {
         role,
         active: true,
         companyIds,
+        canPrintChecks, // ✅ Save printing permission
         createdAt: serverTimestamp(),
       });
 
@@ -130,6 +140,7 @@ const UsersPage: React.FC = () => {
       setPassword("");
       setRole("user");
       setCompanyIds([]);
+      setCanPrintChecks(false); // Reset new state
       fetchAll();
       alert("✅ User created and can now log in!");
     } catch (err: any) {
@@ -143,18 +154,43 @@ const UsersPage: React.FC = () => {
     setEditPassword(user.password);
     setEditCompanies(user.companyIds || []);
     setEditActive(user.active);
+    setEditCanPrintChecks(user.canPrintChecks ?? false); // Set new state for edit
     setOpenDetails(true);
   };
 
   const handleUpdateUser = async () => {
     if (!selectedUser) return;
-    await updateDoc(doc(db, "users", selectedUser.id), {
-      password: editPassword,
-      active: editActive,
-      companyIds: editCompanies,
-    });
-    setOpenDetails(false);
-    fetchAll();
+    
+    // Only update fields that actually changed
+    const updates: any = {};
+    
+    if (editPassword !== selectedUser.password) {
+      // Only update password if it's not empty (user actually wants to change it)
+      if (editPassword && editPassword.trim() !== '') {
+        updates.password = editPassword;
+      }
+    }
+    
+    if (editActive !== selectedUser.active) {
+      updates.active = editActive;
+    }
+    
+    if (JSON.stringify(editCompanies) !== JSON.stringify(selectedUser.companyIds || [])) {
+      updates.companyIds = editCompanies;
+    }
+    
+    if (editCanPrintChecks !== selectedUser.canPrintChecks) {
+      updates.canPrintChecks = editCanPrintChecks;
+    }
+    
+    // Only update if there are actual changes
+    if (Object.keys(updates).length > 0) {
+      await updateDoc(doc(db, "users", selectedUser.id), updates);
+      setOpenDetails(false);
+      fetchAll();
+    } else {
+      alert("No changes to save");
+    }
   };
 
   const handleDeleteUser = async () => {
@@ -168,53 +204,165 @@ const UsersPage: React.FC = () => {
   if (loading) return <Typography>Loading users...</Typography>;
 
   return (
-    <Paper sx={{ p: 3, maxWidth: 800, mx: "auto" }}>
-      <Typography variant="h4" sx={{ mb: 2 }}>
+    <Box sx={{ p: 3, maxWidth: 1200, mx: "auto" }}>
+      {/* Header */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h3" gutterBottom fontWeight="bold" sx={{ color: '#1976d2' }}>
         Users
       </Typography>
+        <Typography variant="body1" color="text.secondary">
+          Manage user accounts and printing permissions
+        </Typography>
+      </Box>
+      
+      {/* Printing Permission Summary */}
+      <Paper elevation={2} sx={{ p: 3, mb: 4, borderRadius: 3, backgroundColor: '#f8f9fa', border: '1px solid', borderColor: 'grey.200' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Security color="primary" sx={{ fontSize: 28 }} />
+            <Typography variant="h5" color="primary" fontWeight="bold">
+                Check Printing Permissions
+              </Typography>
+            </Box>
+            
+          <Box sx={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <Box sx={{ textAlign: 'center', minWidth: 80 }}>
+              <Typography variant="h4" color="success.main" fontWeight="bold">
+                  {users.filter(u => u.canPrintChecks).length}
+                </Typography>
+              <Typography variant="body2" color="success.main" fontWeight="medium">
+                  Can Print
+                </Typography>
+              </Box>
+              
+            <Box sx={{ textAlign: 'center', minWidth: 80 }}>
+              <Typography variant="h4" color="error.main" fontWeight="bold">
+                  {users.filter(u => !u.canPrintChecks).length}
+                </Typography>
+              <Typography variant="body2" color="error.main" fontWeight="medium">
+                  Cannot Print
+                </Typography>
+              </Box>
+              
+            <Box sx={{ textAlign: 'center', minWidth: 80 }}>
+              <Typography variant="h4" color="info.main" fontWeight="bold">
+                {users.length}
+              </Typography>
+              <Typography variant="body2" color="info.main" fontWeight="medium">
+                  Total Users
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+        </Paper>
 
+      {/* Create User Button */}
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
       <Button
         variant="contained"
         color="primary"
-        sx={{ mb: 2 }}
+          size="large"
         onClick={() => setOpenForm(true)}
+          sx={{
+            borderRadius: 2,
+            px: 3,
+            py: 1.5,
+            textTransform: 'none',
+            fontWeight: 'bold',
+            boxShadow: 2,
+            '&:hover': {
+              boxShadow: 4,
+              transform: 'translateY(-1px)',
+            },
+            transition: 'all 0.2s ease-in-out',
+          }}
       >
-        + Create User
+          + CREATE USER
       </Button>
+      </Box>
 
-      <List>
-        {users.map((u) => {
+      {/* Users List */}
+      <Paper elevation={1} sx={{ borderRadius: 3, overflow: 'hidden' }}>
+        {users.map((u, index) => {
           const assignedCompanies = u.companyIds
             ?.map((cid) => companies.find((c) => c.id === cid)?.name)
             .filter(Boolean)
             .join(", ");
+          
+          // Fix undefined username issue
+          const displayUsername = u.username || u.email || 'Unknown User';
+          
           return (
-            <React.Fragment key={u.id}>
-              <ListItem disablePadding>
-                <ListItemButton onClick={() => handleOpenDetails(u)}>
-                  <ListItemText
-                    primary={`${u.username} (${u.role})`}
-                    secondary={
-                      <>
-                        <Typography variant="body2" color="text.secondary">
-                          {u.email ? `Email: ${u.email}` : "No email"}
+            <Box key={u.id}>
+              <ListItem 
+                disablePadding
+                sx={{
+                  '&:hover': {
+                    backgroundColor: 'rgba(25, 118, 210, 0.04)',
+                  },
+                  transition: 'background-color 0.2s ease',
+                }}
+              >
+                <ListItemButton 
+                  onClick={() => handleOpenDetails(u)}
+                  sx={{ py: 2, px: 3 }}
+                >
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                    <Box sx={{ flex: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                        <Typography variant="h6" fontWeight="bold" color="text.primary">
+                          {displayUsername}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {assignedCompanies
-                            ? `Companies: ${assignedCompanies}`
-                            : "No companies assigned"}
-                        </Typography>
-                      </>
-                    }
-                  />
-
+                        <Chip 
+                          label={u.role} 
+                          size="small" 
+                          color={u.role === 'admin' ? 'error' : 'default'}
+                          sx={{ fontWeight: 'medium' }}
+                        />
+                        <Chip 
+                          label={u.active ? 'Active' : 'Inactive'} 
+                          size="small" 
+                          color={u.active ? 'success' : 'error'}
+                          variant="outlined"
+                        />
+                      </Box>
+                      
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        {u.email || 'No email provided'}
+                          </Typography>
+                      
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>Companies:</strong> {assignedCompanies || 'No companies assigned'}
+                      </Typography>
+                    </Box>
+                          
+                          {/* Check Printing Permission Indicator */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 120 }}>
+                          <Tooltip title={u.canPrintChecks ? "Can print checks" : "Cannot print checks"}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              {u.canPrintChecks ? (
+                            <Print color="success" fontSize="medium" />
+                              ) : (
+                            <PrintDisabled color="disabled" fontSize="medium" />
+                              )}
+                              <Typography 
+                            variant="body2" 
+                                color={u.canPrintChecks ? "success.main" : "text.disabled"}
+                            fontWeight="medium"
+                              >
+                                {u.canPrintChecks ? "Can Print" : "No Print"}
+                              </Typography>
+                            </Box>
+                          </Tooltip>
+                        </Box>
+                  </Box>
                 </ListItemButton>
               </ListItem>
-              <Divider />
-            </React.Fragment>
+              {index < users.length - 1 && <Divider />}
+            </Box>
           );
         })}
-      </List>
+      </Paper>
 
       {/* Create User Dialog */}
       <Dialog
@@ -283,6 +431,30 @@ const UsersPage: React.FC = () => {
               ))}
             </Select>
           </FormControl>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={canPrintChecks}
+                onChange={(e) => setCanPrintChecks(e.target.checked)}
+                name="canPrintChecks"
+                color="primary"
+              />
+            }
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Print color="primary" fontSize="small" />
+                Can Print Checks
+              </Box>
+            }
+          />
+          
+          {/* Help text for printing permission */}
+          <Alert severity="info" sx={{ mt: 1 }}>
+            <Typography variant="body2">
+              <strong>Check Printing Permission:</strong> Users with this permission enabled will be able to print checks when viewing the Checks page. 
+              This is a security feature to control who can generate physical checks.
+            </Typography>
+          </Alert>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenForm(false)}>Cancel</Button>
@@ -318,6 +490,32 @@ const UsersPage: React.FC = () => {
             }
             label={editActive ? "Active" : "Inactive"}
           />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={editCanPrintChecks}
+                onChange={(e) => setEditCanPrintChecks(e.target.checked)}
+                name="editCanPrintChecks"
+                color="primary"
+              />
+            }
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Print color="primary" fontSize="small" />
+                {editCanPrintChecks ? "Can Print Checks" : "Cannot Print Checks"}
+              </Box>
+            }
+          />
+          
+          {/* Help text for editing printing permission */}
+          <Alert severity="info" sx={{ mt: 1 }}>
+            <Typography variant="body2">
+              <strong>Printing Permission:</strong> {editCanPrintChecks 
+                ? "This user can currently print checks from the Checks page." 
+                : "This user cannot print checks. Enable this permission to allow check printing."
+              }
+            </Typography>
+          </Alert>
           <FormControl fullWidth>
             <InputLabel id="edit-companies-label">Assign Companies</InputLabel>
             <Select
@@ -360,7 +558,7 @@ const UsersPage: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
-    </Paper>
+    </Box>
   );
 };
 

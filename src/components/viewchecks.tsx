@@ -59,12 +59,22 @@ interface UserMap {
 }
 
 interface ChecksProps {
-  filter?: {
+  filter: {
     companyId?: string;
     weekKey?: string;
     createdBy?: string;
   };
-  onClearFilter?: () => void;
+  onClearFilter: () => void;
+  users: any[];
+  companies: any[];
+  checks: any[];
+  usersLoading: boolean;
+  companiesLoading: boolean;
+  checksLoading: boolean;
+  onReviewUpdated: () => void;
+  refetchChecks: () => void;
+  currentRole: string;
+  companyIds?: string[];
 }
 
 const Checks: React.FC<ChecksProps> = ({ filter, onClearFilter }) => {
@@ -160,10 +170,11 @@ const handleMarkCheckReviewed = async () => {
     // Optionally close dialog after marking
     setOpenDialog(false);
     setSelectedCheck(null);
-  } catch (error) {
-    console.error("Error marking check reviewed:", error);
-    alert("❌ Failed to mark as reviewed.");
+  }  catch (err) {
+    console.error("Error sending review request", err instanceof Error ? err.message : err);
+    alert("❌ Failed to send review request");
   }
+  
 };
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedCheck, setSelectedCheck] = useState<CheckItem | null>(null);
@@ -185,7 +196,7 @@ const handleMarkCheckReviewed = async () => {
   // Smart refresh when selectedCompanyId changes (user clicks on a company)
   useEffect(() => {
     if (selectedCompanyId) {
-      console.log('🏢 Company selected, refreshing checks');
+      console.log('Company selected, refreshing checks');
       setForceRefresh(prev => prev + 1);
     }
   }, [selectedCompanyId]);
@@ -207,11 +218,47 @@ const handleMarkCheckReviewed = async () => {
   // Fetch companies
   useEffect(() => {
     const fetchCompanies = async () => {
-      const compSnap = await getDocs(collection(db, 'companies'));
-      setCompanies(compSnap.docs.map(d => ({ id: d.id, name: d.data().name })));
+      const user = auth.currentUser;
+      if (!user) return;
+  
+      const userSnap = await getDoc(doc(db, 'users', user.uid));
+      if (!userSnap.exists()) return;
+  
+      const userData = userSnap.data() as any;
+      const role = userData.role || 'user';
+  
+      if (role === 'admin') {
+        // Load ALL companies for admin
+        const compSnap = await getDocs(collection(db, 'companies'));
+        setCompanies(
+          compSnap.docs.map((doc) => ({
+            id: doc.id,
+            name: doc.data()?.name || 'Unnamed',
+          }))
+        );
+      } else {
+        // Load only assigned companies
+        const companyIds: string[] = userData.companyIds || [];
+        const companyDocs = await Promise.all(
+          companyIds.map((id) => getDoc(doc(db, 'companies', id)))
+        );
+        const filteredCompanies = companyDocs
+          .filter((doc) => doc.exists())
+          .map((doc) => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              name: data?.name || 'Unnamed',
+            };
+          });
+        setCompanies(filteredCompanies);
+      }
     };
+  
     fetchCompanies();
   }, []);
+  
+  
 
 
 // Removed auto-refresh timer as requested by user

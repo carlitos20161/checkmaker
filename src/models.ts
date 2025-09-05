@@ -15,11 +15,26 @@ export interface Client {
 export interface Employee {
   id: string;
   name: string;
-  clientId: string;
-  companyId: string;
+  address: string;
+  position: string;
   payRate: number;
-  payType: 'hourly' | 'per_diem';
-  startDate: string; // ISO date
+  payType: string;
+  payTypes: string[];
+  companyId?: string | null;
+  companyIds?: string[];
+  clientId?: string | null; // Legacy field - keeping for backward compatibility
+  clientPayTypeRelationships?: ClientPayTypeRelationship[]; // New field for multiple relationships
+  active: boolean;
+  startDate?: string | null;
+  hasMultipleClients?: boolean; // New field to indicate if employee has multiple client relationships
+}
+
+export interface ClientPayTypeRelationship {
+  id: string;
+  clientId: string;
+  clientName: string;
+  payType: 'hourly' | 'perdiem';
+  payRate?: string; // Pay rate for hourly relationships
   active: boolean;
 }
 
@@ -39,4 +54,11 @@ export interface Check {
   date: string; // ISO date
   memo?: string;
   testPrint?: boolean;
+  selectedRelationshipIds?: string[];
+  relationshipDetails?: Array<{
+    id: string;
+    clientId: string;
+    clientName: string;
+    payType: string;
+  }>;
 } 
