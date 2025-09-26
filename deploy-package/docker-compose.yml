@@ -9,7 +9,7 @@ services:
       - newchecks-network
     restart: unless-stopped
     environment:
-      - REACT_APP_API_URL=http://10.0.0.240:5004
+      - REACT_APP_API_URL=http://192.168.0.239:5004
     depends_on:
       - backend
 
